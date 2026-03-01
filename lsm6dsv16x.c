@@ -15,6 +15,7 @@
 #include <zephyr/init.h>
 #include <zephyr/pm/device.h>
 #include <string.h>
+#include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/__assert.h>
 #include <zephyr/logging/log.h>
 
@@ -670,6 +671,35 @@ static int lsm6dsv16x_sample_fetch_gyro(const struct device *dev)
 	return 0;
 }
 
+#ifndef LSM6DSV16X_OUTX_L_G
+#define LSM6DSV16X_OUTX_L_G 0x22
+#endif
+
+static int lsm6dsv16x_sample_fetch_accel_gyro(const struct device *dev)
+{
+	const struct lsm6dsv16x_config *cfg = dev->config;
+	stmdev_ctx_t *ctx = (stmdev_ctx_t *)&cfg->ctx;
+	struct lsm6dsv16x_data *data = dev->data;
+	uint8_t buf[12];
+
+	/* Read 12 bytes starting from LSM6DSV16X_OUTX_L_G (0x22) */
+	/* This covers Gyro (6 bytes) and Accel (6 bytes) contiguously */
+	if (lsm6dsv16x_read_reg(ctx, LSM6DSV16X_OUTX_L_G, buf, 12) < 0) {
+		LOG_DBG("Failed to read sample");
+		return -EIO;
+	}
+
+	data->gyro[0] = sys_get_le16(&buf[0]);
+	data->gyro[1] = sys_get_le16(&buf[2]);
+	data->gyro[2] = sys_get_le16(&buf[4]);
+
+	data->acc[0] = sys_get_le16(&buf[6]);
+	data->acc[1] = sys_get_le16(&buf[8]);
+	data->acc[2] = sys_get_le16(&buf[10]);
+
+	return 0;
+}
+
 #if defined(CONFIG_LSM6DSV16X_ENABLE_TEMP)
 static int lsm6dsv16x_sample_fetch_temp(const struct device *dev)
 {
@@ -718,8 +748,7 @@ static int lsm6dsv16x_sample_fetch(const struct device *dev,
 		break;
 #endif
 	case SENSOR_CHAN_ALL:
-		lsm6dsv16x_sample_fetch_accel(dev);
-		lsm6dsv16x_sample_fetch_gyro(dev);
+		lsm6dsv16x_sample_fetch_accel_gyro(dev);
 #if defined(CONFIG_LSM6DSV16X_ENABLE_TEMP)
 		lsm6dsv16x_sample_fetch_temp(dev);
 #endif
