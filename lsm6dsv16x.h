@@ -215,6 +215,55 @@ static inline uint8_t lsm6dsv16x_bus_reg(struct lsm6dsv16x_data *data, uint8_t x
 int lsm6dsv16x_accel_set_odr_raw(const struct device *dev, uint8_t odr);
 int lsm6dsv16x_gyro_set_odr_raw(const struct device *dev, uint8_t odr);
 
+/**
+ * @brief Get raw accelerometer data directly from device
+ * 
+ * Reads raw accelerometer data (int16_t X, Y, Z) without using sensor_sample_fetch()
+ * 
+ * @param dev Device structure pointer
+ * @param accel Array for 3 int16_t values [X, Y, Z] in LSB units
+ * @return 0 on success, -EIO on read failure
+ */
+int lsm6dsv16x_raw_accel_get(const struct device *dev, int16_t accel[3]);
+
+/**
+ * @brief Get raw gyroscope data directly from device
+ * 
+ * Reads raw gyroscope data (int16_t X, Y, Z) without using sensor_sample_fetch()
+ * 
+ * @param dev Device structure pointer
+ * @param gyro Array for 3 int16_t values [X, Y, Z] in LSB units
+ * @return 0 on success, -EIO on read failure
+ */
+int lsm6dsv16x_raw_gyro_get(const struct device *dev, int16_t gyro[3]);
+
+#if defined(CONFIG_LSM6DSV16X_ENABLE_TEMP)
+/**
+ * @brief Get raw temperature data directly from device
+ * 
+ * Reads raw temperature data without using sensor_sample_fetch()
+ * Only available if CONFIG_LSM6DSV16X_ENABLE_TEMP is enabled
+ * 
+ * @param dev Device structure pointer
+ * @param temp Pointer to int16_t for temperature data in LSB units
+ * @return 0 on success, -EIO on read failure
+ */
+int lsm6dsv16x_raw_temp_get(const struct device *dev, int16_t *temp);
+#endif
+
+/**
+ * @brief Get all raw IMU data (accel + gyro) in one efficient read
+ * 
+ * Reads both accelerometer and gyroscope data in a single bus transaction.
+ * This is more efficient than calling raw_accel_get() and raw_gyro_get() separately.
+ * 
+ * @param dev Device structure pointer
+ * @param accel Array for 3 int16_t values [X, Y, Z] for accelerometer in LSB units
+ * @param gyro Array for 3 int16_t values [X, Y, Z] for gyroscope in LSB units
+ * @return 0 on success, -EIO on read failure
+ */
+int lsm6dsv16x_raw_all_get(const struct device *dev, int16_t accel[3], int16_t gyro[3]);
+
 #if defined(CONFIG_LSM6DSV16X_SENSORHUB)
 int lsm6dsv16x_shub_init(const struct device *dev);
 int lsm6dsv16x_shub_fetch_external_devs(const struct device *dev);

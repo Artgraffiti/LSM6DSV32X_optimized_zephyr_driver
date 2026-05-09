@@ -1070,6 +1070,97 @@ static int lsm6dsv16x_channel_get(const struct device *dev,
 	return 0;
 }
 
+/**
+ * Get raw accelerometer data directly from device registers
+ * @param dev Pointer to the device structure
+ * @param accel Array of 3 int16_t values (X, Y, Z) for raw acceleration data
+ * @return 0 on success, negative errno on failure
+ */
+int lsm6dsv16x_raw_accel_get(const struct device *dev, int16_t accel[3])
+{
+	const struct lsm6dsv16x_config *cfg = dev->config;
+	stmdev_ctx_t *ctx = (stmdev_ctx_t *)&cfg->ctx;
+
+	if (lsm6dsv16x_acceleration_raw_get(ctx, accel) < 0) {
+		LOG_ERR("Failed to read accelerometer data");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/**
+ * Get raw gyroscope data directly from device registers
+ * @param dev Pointer to the device structure
+ * @param gyro Array of 3 int16_t values (X, Y, Z) for raw gyroscope data
+ * @return 0 on success, negative errno on failure
+ */
+int lsm6dsv16x_raw_gyro_get(const struct device *dev, int16_t gyro[3])
+{
+	const struct lsm6dsv16x_config *cfg = dev->config;
+	stmdev_ctx_t *ctx = (stmdev_ctx_t *)&cfg->ctx;
+
+	if (lsm6dsv16x_angular_rate_raw_get(ctx, gyro) < 0) {
+		LOG_ERR("Failed to read gyroscope data");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+#if defined(CONFIG_LSM6DSV16X_ENABLE_TEMP)
+/**
+ * Get raw temperature data directly from device registers
+ * @param dev Pointer to the device structure
+ * @param temp Pointer to int16_t value for raw temperature data
+ * @return 0 on success, negative errno on failure
+ */
+int lsm6dsv16x_raw_temp_get(const struct device *dev, int16_t *temp)
+{
+	const struct lsm6dsv16x_config *cfg = dev->config;
+	stmdev_ctx_t *ctx = (stmdev_ctx_t *)&cfg->ctx;
+
+	if (lsm6dsv16x_temperature_raw_get(ctx, temp) < 0) {
+		LOG_ERR("Failed to read temperature data");
+		return -EIO;
+	}
+
+	return 0;
+}
+#endif
+
+/**
+ * Get all raw IMU data (accelerometer + gyroscope) in one read
+ * This is the most efficient way to read both sensors at once
+ * @param dev Pointer to the device structure
+ * @param accel Array of 3 int16_t values (X, Y, Z) for raw acceleration data
+ * @param gyro Array of 3 int16_t values (X, Y, Z) for raw gyroscope data
+ * @return 0 on success, negative errno on failure
+ */
+int lsm6dsv16x_raw_all_get(const struct device *dev, int16_t accel[3], int16_t gyro[3])
+{
+	const struct lsm6dsv16x_config *cfg = dev->config;
+	stmdev_ctx_t *ctx = (stmdev_ctx_t *)&cfg->ctx;
+	uint8_t buf[12];
+
+	/* Read 12 bytes starting from LSM6DSV16X_OUTX_L_G (0x22) */
+	/* This covers Gyro (6 bytes) and Accel (6 bytes) contiguously */
+	if (lsm6dsv16x_read_reg(ctx, LSM6DSV16X_OUTX_L_G, buf, 12) < 0) {
+		LOG_ERR("Failed to read accel/gyro data");
+		return -EIO;
+	}
+
+	gyro[0] = sys_get_le16(&buf[0]);
+	gyro[1] = sys_get_le16(&buf[2]);
+	gyro[2] = sys_get_le16(&buf[4]);
+
+	accel[0] = sys_get_le16(&buf[6]);
+	accel[1] = sys_get_le16(&buf[8]);
+	accel[2] = sys_get_le16(&buf[10]);
+
+	return 0;
+}
+
 static DEVICE_API(sensor, lsm6dsv16x_driver_api) = {
 	.attr_set = lsm6dsv16x_attr_set,
 	.attr_get = lsm6dsv16x_attr_get,
